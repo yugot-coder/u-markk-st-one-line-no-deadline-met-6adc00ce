@@ -37,6 +37,18 @@ def validate_entry(text: str) -> None:
         raise ValueError("entry is only whitespace")
 
 
+def verify_written_bytes(written: bytes, intended: bytes) -> None:
+    """Byte-exact read-back verification: same length, same bytes,
+    same sha256 digest, and the decoded text still passes the gate."""
+    if len(written) != len(intended):
+        raise ValueError("read-back byte length mismatch")
+    if written != intended:
+        raise ValueError("read-back mismatch: file differs from the intended entry")
+    if hashlib.sha256(written).hexdigest() != hashlib.sha256(intended).hexdigest():
+        raise ValueError("read-back digest mismatch")
+    validate_entry(written.decode("utf-8"))
+
+
 def main() -> None:
     validate_entry(ENTRY)
     path = output_path()
@@ -47,10 +59,8 @@ def main() -> None:
     # Read back and verify: the file must be byte-identical to the intended line.
     with open(path, "rb") as fh:
         written = fh.read()
-    if written != data:
-        raise ValueError("read-back mismatch: file differs from the intended entry")
+    verify_written_bytes(written, data)
     text = written.decode("utf-8")
-    validate_entry(text)
     digest = hashlib.sha256(written).hexdigest()
     print(f"wrote {len(text)} characters to {path}")
     print(f"sha256: {digest}")
